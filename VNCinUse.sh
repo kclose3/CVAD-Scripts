@@ -31,7 +31,7 @@ switchfile() {
 	vncstate=$1
 	timestamp=$(date)
     
-	# Report to Install Log.
+	# Write the result to the switch file.
 	echo $timestamp " - " $vncstate >> /tmp/VNCSwitch.txt
 }
 
@@ -42,7 +42,15 @@ if [ ! -f /tmp/VNCSwitch.txt ]; then
 	touch /tmp/VNCSwitch.txt
 fi
 
-if checkvncuse "$notinuse"; 
+# Run function "checkvncuse" and use the boolean return to determine actions.
+#	We are  *only* looking for changes in state.
+#	If VNC is "not in use", then we only care if it was previously "in use";
+#		in which case we register that as a change and perform the approrpriate cleanup.
+#
+#	If VNC is "in use", then we only care if it was previously "not in use";
+#		in which case we register that as a change, but do nothing else.
+
+if checkvncuse "$notinuse";
 	then
 		if (tail -n 1 /tmp/VNCSwitch.txt | grep 'VNC in use.');
 			then
