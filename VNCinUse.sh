@@ -12,18 +12,16 @@
 
 # Function to see if VNC is currently in use. This simply reports a true/false response.
 function checkvncuse() {
-#  inuse=$(netstat -vanp tcp | grep 5900 | grep ESTABLISHED);
-# testing function for false
-inuse=""
+	inuse=$(netstat -vanp tcp | grep 5900 | grep ESTABLISHED);
 
-  if [ -n "$inuse" ];
-    then
-        #VNC in use. return 1
-        return 1
-  else
-    #VNC not in use. return 0
-    return 0
-  fi
+	if [ -n "$inuse" ];
+		then
+    		#VNC in use. return 1
+        	return 1
+  		else
+    		#VNC not in use. return 0
+    		return 0
+  	fi
 }
 
 # Function to write out a switch file to record current state.
