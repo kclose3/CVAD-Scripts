@@ -27,11 +27,11 @@ function checkvncuse() {
 # Function to write out a switch file to record current state.
 switchfile() {
 
-    # Collect variables for switch.
-    vncstate=$1
-    timestamp=$(date)
+	# Collect variables for switch.
+	vncstate=$1
+	timestamp=$(date)
     
-    # Report to Install Log.
+	# Report to Install Log.
 	echo $timestamp " - " $vncstate >> /tmp/VNCSwitch.txt
 }
 
