@@ -39,7 +39,7 @@ switchfile() {
 
 ### MAIN SCRIPT ###
 
-# Create Switch File if it doesn't already exist.
+# Create Switch File if it doesn't already exist. Otherwise the tail check will fail.
 if [ ! -f /tmp/VNCSwitch.txt ]; then
 	touch /tmp/VNCSwitch.txt
 fi
