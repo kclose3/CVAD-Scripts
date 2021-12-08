@@ -47,14 +47,14 @@ if checkvncuse "$notinuse";
 		if (tail -n 1 /tmp/VNCSwitch.txt | grep 'VNC in use.');
 			then
 				echo "Running disconnect scripts."
-				switchfile "VNC Not in Use."
-			else
-				echo "Do nothing."	
-				switchfile "VNC Not in Use."
+				switchfile "VNC not in use."
 		fi	
 	else
-		switchfile "VNC in use."
-		echo "VNC in use."
+		if (tail -n 1 /tmp/VNCSwitch.txt | grep 'VNC not in use.');
+			then
+				switchfile "VNC in use."
+				echo "VNC in use."
+		fi
 fi
 
 exit 0
