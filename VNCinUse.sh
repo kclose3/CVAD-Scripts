@@ -32,6 +32,7 @@ switchfile() {
 	timestamp=$(date)
     
 	# Write the result to the switch file.
+	echo "writing output to switch file."
 	echo $timestamp " - " $vncstate >> /tmp/VNCSwitch.txt
 }
 
@@ -39,7 +40,9 @@ switchfile() {
 
 # Create Switch File if it doesn't already exist. Otherwise the tail check will fail.
 if [ ! -f /tmp/VNCSwitch.txt ]; then
+	echo "switch file not found. creating switch file."
 	touch /tmp/VNCSwitch.txt
+	switchfile "New Switchfile."
 fi
 
 # Run function "checkvncuse" and use the boolean return to determine actions.
@@ -54,14 +57,14 @@ if checkvncuse "$notinuse";
 	then
 		if (tail -n 1 /tmp/VNCSwitch.txt | grep 'VNC in use.');
 			then
-				echo "Running disconnect scripts."
+				echo "vnc recently in use. running disconnect scripts and writing to switch file."
 				# Add cleanup/disconnect scripts here.
 				switchfile "VNC not in use."
 		fi	
 	else
 		if (tail -n 1 /tmp/VNCSwitch.txt | grep 'VNC not in use.');
 			then
-				echo "VNC in use."
+				echo "vnc in use. writing to switch file."
 				switchfile "VNC in use."
 		fi
 fi
