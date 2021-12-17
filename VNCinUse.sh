@@ -61,6 +61,7 @@ if checkvncuse "$notinuse";
 			then
 				echo "vnc recently in use. running disconnect scripts and writing to switch file."
 				# Add cleanup/disconnect scripts here.
+				/usr/local/jamf/bin/jamf policy -event cvad.guacdisconnect
 				switchfile "VNC not in use."
 		fi	
 	else
