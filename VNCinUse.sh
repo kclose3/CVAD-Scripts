@@ -6,6 +6,8 @@
 # Checks for VNC connection and triggers cleanup scripts if VNC was only recently disconnected.
 # This script should be run on a timed cycle with a launch daemon.
 #
+# ToDo: Update 
+#
 #################################################################################################
 
 ### NECESSARY FUNCTIONS ###
@@ -62,7 +64,7 @@ if checkvncuse "$notinuse";
 				switchfile "VNC not in use."
 		fi	
 	else
-		if (tail -n 1 /tmp/VNCSwitch.txt | grep 'VNC not in use.');
+		if (tail -n 1 /tmp/VNCSwitch.txt | grep 'VNC not in use.') || (tail -n 1 /tmp/VNCSwitch.txt | grep 'New Switchfile.');
 			then
 				echo "vnc in use. writing to switch file."
 				switchfile "VNC in use."
