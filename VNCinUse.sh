@@ -14,7 +14,7 @@
 
 # Function to see if VNC is currently in use. This simply reports a true/false response.
 function checkvncuse() {
-	inuse=$(netstat -vanp tcp | grep 5900 | grep ESTABLISHED);
+	inuse=$(netstat -vanp tcp | grep 5900 | grep ESTABLISHED | awk '{print $5}' | grep 129.120.207);
 
 	if [ -n "$inuse" ];
 		then
