@@ -1,20 +1,22 @@
 #!/bin/bash
 
-#################################################################################################
+#########################################################################################################################
 #
 # VNC Checker written by Austin Leath and KClose.
 # Checks for VNC connection and triggers cleanup scripts if VNC was only recently disconnected.
 # This script should be run on a timed cycle with a launch daemon.
 #
-# ToDo: Update 
+# Updated 01/24/2022:	Check *only* connecttions from subnet 129.120.207.*
+#						This is to ignore any and any management connections that may be made (ARD, ScreenSharing, etc.)
+#						Also added IP reporting to the switchfile to check for unexpected connections.
 #
-#################################################################################################
+#########################################################################################################################
 
 ### NECESSARY FUNCTIONS ###
 
 # Function to see if VNC is currently in use. This simply reports a true/false response.
 function checkvncuse() {
-	inuse=$(netstat -vanp tcp | grep 5900 | grep ESTABLISHED);
+	inuse=$(netstat -vanp tcp | grep 5900 | grep ESTABLISHED | awk '{print $5}' | grep 129.120.207);
 
 	if [ -n "$inuse" ];
 		then
@@ -60,15 +62,15 @@ if checkvncuse "$notinuse";
 		if (tail -n 1 /tmp/VNCSwitch.txt | grep 'VNC in use.');
 			then
 				echo "vnc recently in use. running disconnect scripts and writing to switch file."
-				# Add cleanup/disconnect scripts here.
 				/usr/local/jamf/bin/jamf policy -event cvad.guacdisconnect
 				switchfile "VNC not in use."
 		fi	
 	else
 		if (tail -n 1 /tmp/VNCSwitch.txt | grep 'VNC not in use.') || (tail -n 1 /tmp/VNCSwitch.txt | grep 'New Switchfile.');
 			then
-				echo "vnc in use. writing to switch file."
-				switchfile "VNC in use."
+				connectedip=$(netstat -vanp tcp | grep 5900 | grep ESTABLISHED | awk '{print $5}')
+				echo "vnc in use from writing to switch file."
+				switchfile "VNC in use. Connected IP is $connectedip."
 		fi
 fi
 
