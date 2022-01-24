@@ -10,11 +10,14 @@
 #						This is to ignore any and any management connections that may be made (ARD, ScreenSharing, etc.)
 #						Also added IP reporting to the switchfile to check for unexpected connections.
 #
+# ToDo: move subnet to a variable for future, wider use applications.
+#
 #########################################################################################################################
 
 ### NECESSARY FUNCTIONS ###
 
 # Function to see if VNC is currently in use. This simply reports a true/false response.
+#	If using this script on another subnet, be sure to change the the last grep option accordingly.
 function checkvncuse() {
 	inuse=$(netstat -vanp tcp | grep 5900 | grep ESTABLISHED | awk '{print $5}' | grep 129.120.207);
 
