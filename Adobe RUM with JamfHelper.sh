@@ -96,7 +96,7 @@ configureLog ()
 }
 
 # Function to generate friendly names from Adobe Sap names.
-# $sapTitle in returns $appTitle out.
+# 	$sapTitle in returns $appTitle out.
 friendlyName () {
 	sapTitle=$1
 	case $sapTitle in
