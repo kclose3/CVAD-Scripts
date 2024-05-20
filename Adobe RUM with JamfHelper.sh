@@ -63,7 +63,7 @@ installUpdates ()
 	caffeinate -d -i -m -u &
 	caffeinatepid=$!
 	# Displaying jamfHelper update "progress".
-	progressDesc="Downloading and Installing\n  • $appTitle Update.\n\nThis may take some time..."
+	progressDesc="Downloading and Installing\n  • $appTitle Update\n\nThis may take some time..."
 	"$jamfHelper" -windowType hud -windowPosition ur -title "Adobe Updater" -description "$(echo "$progressDesc")" -icon "$installIcon" -lockHUD > /dev/null 2>&1 &
 	# Force quit application in preparation for update
 	echo "Attempting to quit $appTitle"  
