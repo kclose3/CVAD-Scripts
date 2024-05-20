@@ -267,13 +267,14 @@ fi
 rm -rf $logPath
 
 # Check for old LauchDaemons and remove them.
-	# Generate a list of all deferred Daemons and store the latest created.
+# 	Generate a list of all deferred Daemons
 listPlist=($(ls -tr /Library/LaunchDaemons | grep "com.adobeupdate.deferred"))
-latestPlist=${listPlist[-1]}
-
-	# For each Daemon found, if it's not the latest created, unload and delete it.
+	
+# For each Daemon found, if it's not the current or latest created, unload and delete it.
+#	This is to prevent premature bootout of the current Launch Daemon,
+#	which prevents the policy from properly reporting back to Jamf.
 for checkPlist in $listPlist; do
-	if [[ "$checkPlist" != "$latestPlist" ]]; then
+	if [[ "$checkPlist" != "${listPlist[-1]}" && "$checkPlist" != "${listPlist[-2]}" ]]; then
 		launchctl bootout system /Library/LaunchDaemons/$checkPlist
 		rm -f /Library/LaunchDaemons/$checkPlist
 	fi
