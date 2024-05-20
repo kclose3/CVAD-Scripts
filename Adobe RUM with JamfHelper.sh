@@ -95,6 +95,23 @@ configureLog ()
 	fi
 }
 
+# Function to clean up old LaunchDaemons.
+daemonCleanup ()
+{
+	# 	Check for old LauchDaemons and remove them.
+	listPlist=($(ls -tr /Library/LaunchDaemons | grep "com.adobeupdate.deferred"))
+	
+	# For each Daemon found, if it's not the current (assumed running) Daemon, unload and delete it.
+	#	This is to prevent premature bootout of the current Launch Daemon,
+	#	which prevents the policy from properly reporting back to Jamf.
+	for checkPlist in $listPlist; do
+		if [[ "$checkPlist" != "${listPlist[-1]}" ]]; then
+			launchctl bootout system /Library/LaunchDaemons/$checkPlist
+			rm -f /Library/LaunchDaemons/$checkPlist
+		fi
+	done
+}
+
 # Function to generate friendly names from Adobe Sap names.
 # 	$sapTitle in returns $appTitle out.
 friendlyName () {
@@ -178,6 +195,9 @@ if [[ ! -f $rum ]] ; then
 		exit 1
 	fi
 fi
+
+# Cleanup old LaunchDaemons
+daemonCleanup
 
 # Generate RUM list
 configureLog
@@ -265,17 +285,3 @@ fi
 
 # Cleanup our temporary log files
 rm -rf $logPath
-
-# Check for old LauchDaemons and remove them.
-# 	Generate a list of all deferred Daemons
-listPlist=($(ls -tr /Library/LaunchDaemons | grep "com.adobeupdate.deferred"))
-	
-# For each Daemon found, if it's not the current or latest created, unload and delete it.
-#	This is to prevent premature bootout of the current Launch Daemon,
-#	which prevents the policy from properly reporting back to Jamf.
-for checkPlist in $listPlist; do
-	if [[ "$checkPlist" != "${listPlist[-1]}" && "$checkPlist" != "${listPlist[-2]}" ]]; then
-		launchctl bootout system /Library/LaunchDaemons/$checkPlist
-		rm -f /Library/LaunchDaemons/$checkPlist
-	fi
-done
