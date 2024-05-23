@@ -21,6 +21,9 @@
 # 5/14/24 - Added deferral option. This option simply calls a Jamf policy to run the script again.
 #         - Further testing and finalization of the UI.
 # 5/20/24 -	Added timestamp to deferral LaunchDaemon and added cleanup for old Daemons.
+# 5/23/24 -	Swapped out "exit" for "kill" when no updates are found to prevent logging back to Jamf.
+#			Remove Cancel from the initial pop-up, but added 1-Day as a deferral option.
+#			Also added "FriendlyTime" for logging.
 #
 #############################################################################################################################
 
@@ -64,7 +67,7 @@ installUpdates ()
 	caffeinatepid=$!
 	# Displaying jamfHelper update "progress".
 	progressDesc="Downloading and Installing\n  • $appTitle Update\n\nThis may take some time..."
-	"$jamfHelper" -windowType hud -windowPosition ur -title "Adobe Updater" -description "$(echo "$progressDesc")" -icon "$installIcon" -lockHUD > /dev/null 2>&1 &
+	"$jamfHelper" -windowType hud -windowPosition ur -title "Adobe Updater" -description "$(echo "$progressDesc")" -icon "$installIcon" -button1 "Ok" -lockHUD -defaultButton 1 > /dev/null 2>&1 &
 	# Force quit application in preparation for update
 	echo "Attempting to quit $appTitle"  
 	# Run update for the current application in the loop.
@@ -219,7 +222,9 @@ done < <( echo $rumUpdates )
 # Check for updates and continue based on number of available updates.
 if [[ ${#rumArray[@]} -lt 1 ]]; then # If there are no updates then end here.
 	echo "No updates found. Exiting without proceeding."
-	exit 0
+	# We are killing the script rather than exiting to keep from reporting to Jamf.
+	#	If you would rather a graceful termination, replace the kill command with an exit command.
+	kill $$
 else # If there are updates, prompt the user to update.
 	echo "${#rumArray[@]} updates found. Proceeding to user prompt."
 	
@@ -257,7 +262,7 @@ else # If there are updates, prompt the user to update.
 	fi
 	
 	# Using all of the above information, prompt the user to see when they would like to install the updates.
-	promptReponse=$("$jamfHelper" -lockHUD -showDelayOptions "0, 900, 3600" -windowType hud -button1 "Ok" -defaultButton 1 -icon "$alertIcon" -description "$(cat "$rumPrompt")" -windowPosition ur -button2 "Cancel" -title "Adobe Updates Available")
+	promptReponse=$("$jamfHelper" -lockHUD -showDelayOptions "0, 900, 3600, 86400" -windowType hud -button1 "Ok" -defaultButton 1 -icon "$alertIcon" -description "$(cat "$rumPrompt")" -windowPosition ur -title "Adobe Updates Available")
 	
 	# Record choices from the user prompt.
 	userChoice=${promptReponse: -1}
@@ -274,8 +279,13 @@ else # If there are updates, prompt the user to update.
 			# Show an alert that updates are done.
 			"$jamfHelper" -windowType hud -lockHUD -windowPosition ur -title "Adobe Updater" -description "All available updates have been installed." \
 			-icon "$alertIcon" -button1 Ok -defaultButton 1
+		elif [[ $deferralTime == "86400" ]]; then
+			friendlyTime=$(printf '%dh:%02dm\n' $((deferralTime/3600)) $((deferralTime%3600/60)))
+			echo "User chose to defer for $friendlyTime This is long enough to let Jamf handle the deferral. Exiting"
+			exit 0
 		else # If the user chose to defer the updates, create a Launch Daemon that will run a Jamf policy at the chosen time.
-			echo "write a launch agent to run in $deferralTime seconds."
+			friendlyTime=$(printf '%dh:%02dm\n' $((deferralTime/3600)) $((deferralTime%3600/60)))
+			echo "User chose to defer for $friendlyTime Writing a launch agent to to handle the deferral."
 			agentSchedule $deferralTime
 		fi
 	elif [[ "$userChoice" == "2" ]]; then # If the user said No, quit now.
