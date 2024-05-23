@@ -21,8 +21,7 @@
 # 5/14/24 - Added deferral option. This option simply calls a Jamf policy to run the script again.
 #         - Further testing and finalization of the UI.
 # 5/20/24 -	Added timestamp to deferral LaunchDaemon and added cleanup for old Daemons.
-# 5/23/24 -	Swapped out "exit" for "kill" when no updates are found to prevent logging back to Jamf.
-#			Remove Cancel from the initial pop-up, but added 1-Day as a deferral option.
+# 5/23/24 -	Remove Cancel from the initial pop-up, but added 1-Day as a deferral option.
 #			Also added "FriendlyTime" for logging.
 #
 #############################################################################################################################
@@ -222,9 +221,7 @@ done < <( echo $rumUpdates )
 # Check for updates and continue based on number of available updates.
 if [[ ${#rumArray[@]} -lt 1 ]]; then # If there are no updates then end here.
 	echo "No updates found. Exiting without proceeding."
-	# We are killing the script rather than exiting to keep from reporting to Jamf.
-	#	If you would rather a graceful termination, replace the kill command with an exit command.
-	kill $$
+	exit 0
 else # If there are updates, prompt the user to update.
 	echo "${#rumArray[@]} updates found. Proceeding to user prompt."
 	
