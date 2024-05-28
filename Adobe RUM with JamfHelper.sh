@@ -14,15 +14,18 @@
 #         - This will be the policy that is called if the user choses to defer the updates.
 #
 # Changelog:
-# 5/6/24  - Initial Upload
-#         - Added/Updated Application List
-# 5/12/24 - Over the past week, I have effectively rewritten most of the UI.
-#         - Additionally, both Acrobat Pro and Acrobat reader will be ignored due to failures in the install/update process.
-# 5/14/24 - Added deferral option. This option simply calls a Jamf policy to run the script again.
-#         - Further testing and finalization of the UI.
-# 5/20/24 -	Added timestamp to deferral LaunchDaemon and added cleanup for old Daemons.
-# 5/23/24 -	Remove Cancel from the initial pop-up, but added 1-Day as a deferral option.
-#			Also added "FriendlyTime" for logging.
+# 5/6/24  	-	Initial Upload
+#         	-	Added/Updated Application List
+# 5/12/24 	-	Over the past week, I have effectively rewritten most of the UI.
+#         	-	Additionally, both Acrobat Pro and Acrobat reader will be ignored due to failures in the install/update process.
+# 5/14/24 	- 	Added deferral option. This option simply calls a Jamf policy to run the script again.
+#         	-	Further testing and finalization of the UI.
+# 5/20/24 	-	Added timestamp to deferral LaunchDaemon and added cleanup for old Daemons.
+# 5/23/24 	-	Remove Cancel from the initial pop-up, but added 1-Day as a deferral option.
+#				Also added "FriendlyTime" for logging.
+# 5/28/24	-	Added prompt to quit each app before updating to prevent failures.
+#			-	Added failure check.
+#			-	Added a Download command even before prompting the user to run updates to help speed up the visible process.
 #
 #############################################################################################################################
 
@@ -40,6 +43,7 @@ jamf_bin="/usr/local/bin/jamf"
 plistPal="/usr/libexec/PlistBuddy"
 installRUM="${4}" # set RUM install trigger in parameter 4.
 selfTrigger="${5}" # set the trigger to re-run this policy.
+failCount=0
 
 # if parameter 4 is not specified, use the UNT default install trigger.
 if [[ -z $installRUM ]]; then
@@ -64,18 +68,43 @@ installUpdates ()
 	# Let's caffinate the mac because this can take long.
 	caffeinate -d -i -m -u &
 	caffeinatepid=$!
+	# Prompting user to quit application in preparation for update. 
+	if pgrep "$appTitle" > /dev/null 2>&1 # Check if the application is running.
+	then # If it's running, prompt the user to quit.
+		loopCounter=0
+		echo "Attempting to quit $appTitle"
+		# Give the user 30 seconds to acknowledge that the applicaiton needs to be closed.
+		"$jamfHelper" -windowPosition ur -button1 "Quit App" -timeout 30 -icon $icons/ToolbarInfo.icns -defaultButton 1 -lockHUD -windowType hud -title "Quit Application" -description "$appTitle must be quit before proceeding." > /dev/null 2>&1
+		# Attempt to quit the application cleanly.
+		osascript -e 'quit app "'"$appTitle"'"'
+		# If there is unsaved work, give the user another 30 seconds to save and quit.
+		while pgrep "$appTitle" > /dev/null 2>&1
+		do
+			if [[ $loopCounter -lt 30 ]]; then
+				sleep 1
+				loopCounter=$(($loopCounter+1))
+			else
+				# User never responded, so we will skip this update for now.
+				echo "$appTitle failed to close. Continuing."
+				failCount=$(($failCount+1))
+				return 
+			fi
+		done
+	fi
 	# Displaying jamfHelper update "progress".
-	progressDesc="Downloading and Installing\n  • $appTitle Update\n\nThis may take some time..."
-	"$jamfHelper" -windowType hud -windowPosition ur -title "Adobe Updater" -description "$(echo "$progressDesc")" -icon "$installIcon" -button1 "Ok" -lockHUD -defaultButton 1 > /dev/null 2>&1 &
-	# Force quit application in preparation for update
-	echo "Attempting to quit $appTitle"  
+	echo "Downloading and Installing\n  • $appTitle Update\n\nThis may take some time..." > $rumPrompt
+	"$jamfHelper" -windowType hud -windowPosition ur -title "Adobe Updater" -description "$(cat "$rumPrompt")" -icon "$installIcon" -button1 "Ok" -lockHUD -defaultButton 1 > /dev/null 2>&1 &
 	# Run update for the current application in the loop.
-	$rum --action=install --productVersions=$sapTitle
+	if $rum --action=install --productVersions=$sapTitle; then
+		echo "$appTitle updated successfully."
+	else
+		echo "$appTitle update failed"
+		failCount=$(($failCount+1))
+	fi
 	# Kill jamfhelper
 	killall jamfHelper > /dev/null 2>&1
 	# No more caffeine please. I've a headache.
 	kill "$caffeinatepid"
-	# exit 0
 }
 
 # Function to set up the log files.
@@ -188,7 +217,7 @@ agentSchedule () {
 ### MAIN SCRIPT ###
 ###################
 
-# RUM installed? Lets install if not.
+# Install RUM if it is not installed already.
 if [[ ! -f $rum ]] ; then
 	echo "Installing RUM from JSS"
 	$jamf_bin policy -event "$installRUM"
@@ -198,10 +227,11 @@ if [[ ! -f $rum ]] ; then
 	fi
 fi
 
-# Cleanup old LaunchDaemons
+# Cleanup old LaunchDaemons.
 daemonCleanup
 
-# Generate RUM list
+# Generate RUM list.
+echo "Checking for Updates."
 configureLog
 $rum --action=list > "$rumLog"
 
@@ -221,9 +251,13 @@ done < <( echo $rumUpdates )
 # Check for updates and continue based on number of available updates.
 if [[ ${#rumArray[@]} -lt 1 ]]; then # If there are no updates then end here.
 	echo "No updates found. Exiting without proceeding."
-	exit 0
+	exitCode=0
 else # If there are updates, prompt the user to update.
-	echo "${#rumArray[@]} updates found. Proceeding to user prompt."
+	echo "${#rumArray[@]} updates found. Downloading updates."
+	for appUpdate in "${rumArray[@]}"; do
+		$rum --action=download --productVersions=$appUpdate
+	done
+	echo "Prompt user to install updates."
 	
 	# Build the jhc description for the user prompt.
 	#   Set plurality of the description text.
@@ -244,7 +278,7 @@ else # If there are updates, prompt the user to update.
 		echo "\t• $appTitle" >> $rumPrompt
 	done
 	#   Set the footer text of the jhc Description.
-	echo "\nThe above $appNumText to be quit before $instNumText can be installed.\n\nWhen would you like to install $instNumText?" >> $rumPrompt
+	echo "\nThe above $appNumText to quit before $instNumText can be installed.\n\nWhen would you like to install $instNumText?" >> $rumPrompt
 	
 	# Define icons for jhc prompts - use Adobe icons if available, otherwise use Apple icons.
 	if [[ -d "/Applications/Utilities/Adobe Creative Cloud/Utils/Creative Cloud Installer.app" ]]; then
@@ -274,12 +308,19 @@ else # If there are updates, prompt the user to update.
 				installUpdates $appUpdate
 			done
 			# Show an alert that updates are done.
-			"$jamfHelper" -windowType hud -lockHUD -windowPosition ur -title "Adobe Updater" -description "All available updates have been installed." \
-			-icon "$alertIcon" -button1 Ok -defaultButton 1
+			if [[ $failCount == "0" ]]; then
+				echo "All available updates have been installed." > $rumPrompt
+				"$jamfHelper" -windowType hud -lockHUD -windowPosition ur -title "Adobe Updater" -description "$(cat "$rumPrompt")" -icon "$alertIcon" -button1 Ok -defaultButton 1 > /dev/null 2>&1
+				exitCode=0
+			else
+				echo "Some updates may have failed.\n\nThe Adobe Updater will try again tomorrow, or you can run the updates yourself from the Adobe CC Application." > $rumPrompt
+				"$jamfHelper" -windowType hud -lockHUD -windowPosition ur -title "Adobe Updater" -description "$(cat "$rumPrompt")" -icon "$alertIcon" -button1 Ok -defaultButton 1 > /dev/null 2>&1
+				exitCode=1
+			fi
 		elif [[ $deferralTime == "86400" ]]; then
 			friendlyTime=$(printf '%dh:%02dm\n' $((deferralTime/3600)) $((deferralTime%3600/60)))
 			echo "User chose to defer for $friendlyTime This is long enough to let Jamf handle the deferral. Exiting"
-			exit 0
+			exitCode=0
 		else # If the user chose to defer the updates, create a Launch Daemon that will run a Jamf policy at the chosen time.
 			friendlyTime=$(printf '%dh:%02dm\n' $((deferralTime/3600)) $((deferralTime%3600/60)))
 			echo "User chose to defer for $friendlyTime Writing a launch agent to to handle the deferral."
@@ -292,3 +333,4 @@ fi
 
 # Cleanup our temporary log files
 rm -rf $logPath
+exit $exitCode
