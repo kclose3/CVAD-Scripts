@@ -34,7 +34,7 @@
 #################
 
 icons="/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources" # MacOS system icons directory
-logPath="/Library/Application Support/CustomAdobeUpdater/"
+logPath="/Library/Application Support/CustomAdobeUpdater"
 rumLog="$logPath/AdobeRUM_Updates.log"
 rumPrompt="$logPath/AdobeRUM_Prompt.txt"
 jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
