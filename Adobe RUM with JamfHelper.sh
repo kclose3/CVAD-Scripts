@@ -244,7 +244,7 @@ $rum --action=list > "$rumLog"
 # Check for updates, ignoring Acrobat and Camera Raw and extract the Sap Code.
 #	(Adobe Acrobat is omitted becasue there are issues with updating all flavors of Acrobat with RUM)
 #	(Adobe Camera Raw is omitted becuase it cannot update if Photoshop is running - so we will pair Camera Raw with Photoshop)
-rumUpdates=$(cat "$rumLog" | grep "(" | grep -v -e -i "Acr" -e "Return Code" | awk -F '[(/]' '{print $2}')
+rumUpdates=$(cat "$rumLog" | grep "(" | grep -vi -e "Acr" -e "Return Code" | awk -F '[(/]' '{print $2}')
 
 # Add all applications to be updated to an array.
 rumArray=()
