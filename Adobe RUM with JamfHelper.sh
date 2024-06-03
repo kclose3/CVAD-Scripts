@@ -26,6 +26,7 @@
 # 5/28/24	-	Added prompt to quit each app before updating to prevent failures.
 #			-	Added failure check.
 #			-	Added a Download command even before prompting the user to run updates to help speed up the visible process.
+# 6/3/24	-	Added some *** to a couple of comments to make them stand out better in the logs.
 #
 #############################################################################################################################
 
@@ -250,10 +251,10 @@ done < <( echo $rumUpdates )
 
 # Check for updates and continue based on number of available updates.
 if [[ ${#rumArray[@]} -lt 1 ]]; then # If there are no updates then end here.
-	echo "No updates found. Exiting without proceeding."
+	echo "*** No updates found. Exiting without proceeding. ***"
 	exitCode=0
 else # If there are updates, prompt the user to update.
-	echo "${#rumArray[@]} updates found. Downloading updates."
+	echo "*** ${#rumArray[@]} updates found. Downloading updates. ***"
 	for appUpdate in "${rumArray[@]}"; do
 		$rum --action=download --productVersions=$appUpdate
 	done
