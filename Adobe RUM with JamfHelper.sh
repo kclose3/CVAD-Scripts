@@ -27,10 +27,7 @@
 #			-	Added failure check.
 #			-	Added a Download command even before prompting the user to run updates to help speed up the visible process.
 # 6/3/24	-	Added some *** to a couple of comments to make them stand out better in the logs.
-#
-# ToDo		-	Adobe Camera Raw will not update if Photoshop is open. 
-#					If Camera Raw has an update, but Photoshop does not, then Camera Raw will fail if Photoshop is open.
-#					I need to either filter out ACR as an option, or attempt to close Photoshop in advance.
+#			-	Filtered out Camera Raw from the search and added a line to include Camera Raw with the Adobe Photoshop updater.
 #
 #############################################################################################################################
 
@@ -70,6 +67,10 @@ installUpdates ()
 	# Retrieve Sap Title and generate a friendly name for the application to be installed.
 	sapTitle="$1"
 	friendlyName $sapTitle
+	# Now that we have the friendly name, if the application being updated is Photoshop, add Camera Raw to the update command.
+	if [[ $sapTitle == "PSHP"]]; then 
+		sapTitle="PSHP,ACR"
+	fi
 	# Let's caffinate the mac because this can take long.
 	caffeinate -d -i -m -u &
 	caffeinatepid=$!
@@ -240,8 +241,10 @@ echo "Checking for Updates."
 configureLog
 $rum --action=list > "$rumLog"
 
-# Check for updates, ignoring Acrobat (due to issues trying to update Acrobat via RUM), and extract the Sap Code.
-rumUpdates=$(cat "$rumLog" | grep "(" | grep -v -e "Acrobat" -e "Return Code" | awk -F '[(/]' '{print $2}')
+# Check for updates, ignoring Acrobat and Camera Raw and extract the Sap Code.
+#	(Adobe Acrobat is omitted becasue there are issues with updating all flavors of Acrobat with RUM)
+#	(Adobe Camera Raw is omitted becuase it cannot update if Photoshop is running - so we will pair Camera Raw with Photoshop)
+rumUpdates=$(cat "$rumLog" | grep "(" | grep -v -e "Acr" -e "Return Code" | awk -F '[(/]' '{print $2}')
 
 # Add all applications to be updated to an array.
 rumArray=()
