@@ -28,6 +28,10 @@
 #			-	Added a Download command even before prompting the user to run updates to help speed up the visible process.
 # 6/3/24	-	Added some *** to a couple of comments to make them stand out better in the logs.
 #
+# ToDo		-	Adobe Camera Raw will not update if Photoshop is open. 
+#					If Camera Raw has an update, but Photoshop does not, then Camera Raw will fail if Photoshop is open.
+#					I need to either filter out ACR as an option, or attempt to close Photoshop in advance.
+#
 #############################################################################################################################
 
 #################
