@@ -167,7 +167,7 @@ friendlyName () {
 		IDSN) appTitle="InDesign" ;;
 		ILST) appTitle="Illustrator" ;;
 		INDS) appTitle="InDesign" ;;
-		KRBG) appTitle="Bridge" ;;
+		KBRG) appTitle="Bridge" ;;
 		LRCC) appTitle="Lightroom" ;;
 		LTRM) appTitle="Lightroom Classic" ;;
 		MUSE) appTitle="Muse" ;;
