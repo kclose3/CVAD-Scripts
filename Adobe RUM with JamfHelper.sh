@@ -68,7 +68,7 @@ installUpdates ()
 	sapTitle="$1"
 	friendlyName $sapTitle
 	# Now that we have the friendly name, if the application being updated is Photoshop, add Camera Raw to the update command.
-	if [[ $sapTitle == "PSHP"]]; then 
+	if [[ $sapTitle == "PSHP" ]]; then 
 		sapTitle="PSHP,ACR"
 	fi
 	# Let's caffinate the mac because this can take long.
