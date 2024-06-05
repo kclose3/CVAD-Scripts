@@ -25,9 +25,10 @@
 #				Also added "FriendlyTime" for logging.
 # 5/28/24	-	Added prompt to quit each app before updating to prevent failures.
 #			-	Added failure check.
-#			-	Added a Download command even before prompting the user to run updates to help speed up the visible process.
 # 6/3/24	-	Added some *** to a couple of comments to make them stand out better in the logs.
 #			-	Filtered out Camera Raw from the search and added a line to include Camera Raw with the Adobe Photoshop updater.
+# 6/5/24	-	Added 24-hour deferral count.
+#				Changed deferral options to 30 minutes and 90 minutes to better accomodate user schedules.
 #
 #############################################################################################################################
 
@@ -39,6 +40,7 @@ icons="/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources" # MacOS
 logPath="/Library/Application Support/CustomAdobeUpdater"
 rumLog="$logPath/AdobeRUM_Updates.log"
 rumPrompt="$logPath/AdobeRUM_Prompt.txt"
+deferralLog="/private/var/log/rumdeferral.txt"
 jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 rum="/usr/local/bin/RemoteUpdateManager"
 jamf_bin="/usr/local/bin/jamf"
@@ -120,15 +122,27 @@ configureLog ()
 	if [[ ! -d "$logPath" ]]; then
 		mkdir -p "$logPath"
 	else
-		for configLog in "$rumLog" "$rumPrompt"
+		for newLog in "$rumLog" "$rumPrompt"
 		do
 			# if the log file exists, clear the old log.
-			if [[ -f "$configLog" ]] ; then
-				rm "$configLog"
+			if [[ -f "$newLog" ]] ; then
+				rm "$newLog"
 			fi
 			# create a fresh log file.
-			touch "$configLog"
+			touch "$newLog"
 		done
+	fi
+}
+
+configDeferralLog ()
+{
+	# if the log doesn't exist, create it.
+	if [[ ! -f $deferralLog ]]; then
+		touch $deferralLog
+		deferralCount="0"
+		echo "$deferralCount" > $deferralLog
+	else
+		deferralCount="$(cat $deferralLog)"
 	fi
 }
 
@@ -237,13 +251,13 @@ fi
 daemonCleanup
 
 # Generate RUM list.
-echo "Checking for Updates."
+echo "*** Checking for Updates. ***"
 configureLog
 $rum --action=list > "$rumLog"
 
-# Check for updates, ignoring Acrobat and Camera Raw and extract the Sap Code.
-#	(Adobe Acrobat is omitted becasue there are issues with updating all flavors of Acrobat with RUM)
-#	(Adobe Camera Raw is omitted becuase it cannot update if Photoshop is running - so we will pair Camera Raw with Photoshop)
+# Check for updates, ignoring Acrobat and Camera Raw ("Acr") and extract the Sap Code.
+#	- Adobe Acrobat is omitted becasue there are issues with updating all flavors of Acrobat with RUM
+#	- Adobe Camera Raw is omitted becuase it cannot update if Photoshop is running - so we will pair Camera Raw with Photoshop
 rumUpdates=$(cat "$rumLog" | grep "(" | grep -vi -e "Acr" -e "Return Code" | awk -F '[(/]' '{print $2}')
 
 # Add all applications to be updated to an array.
@@ -260,13 +274,12 @@ done < <( echo $rumUpdates )
 if [[ ${#rumArray[@]} -lt 1 ]]; then # If there are no updates then end here.
 	echo "*** No updates found. Exiting without proceeding. ***"
 	exitCode=0
-else # If there are updates, prompt the user to update.
-	echo "*** ${#rumArray[@]} updates found. Downloading updates. ***"
-	for appUpdate in "${rumArray[@]}"; do
-		$rum --action=download --productVersions=$appUpdate
-	done
-	echo "Prompt user to install updates."
-	
+else # If there are updates, prompt the user to update.	
+	# Check for Deferral Log and grab deferral count.
+	configDeferralLog
+
+	# Begining user prompt.
+	echo "*** Prompting user to install updates. ***"
 	# Build the jhc description for the user prompt.
 	#   Set plurality of the description text.
 	if [[ ${#rumArray[@]} == "1" ]]; then
@@ -300,8 +313,16 @@ else # If there are updates, prompt the user to update.
 		alertIcon="$icons/ToolbarInfo.icns"
 	fi
 	
+	# Determine if 24-Hour Deferral limit of 3 has been exceeded.
+	if [[ $deferralCount -le "3" ]]; then
+		deferralOptions="0, 1800, 5400, 86400"
+	else
+		echo "*** 24-Hour Deferrals have been exceeded. ***"
+		deferralOptions="0, 1800, 5400"
+	fi
+	
 	# Using all of the above information, prompt the user to see when they would like to install the updates.
-	promptReponse=$("$jamfHelper" -lockHUD -showDelayOptions "0, 900, 3600, 86400" -windowType hud -button1 "Ok" -defaultButton 1 -icon "$alertIcon" -description "$(cat "$rumPrompt")" -windowPosition ur -title "Adobe Updates Available")
+	promptReponse=$("$jamfHelper" -lockHUD -showDelayOptions "$deferralOptions" -windowType hud -button1 "Ok" -defaultButton 1 -icon "$alertIcon" -description "$(cat "$rumPrompt")" -windowPosition ur -title "Adobe Updates Available")
 	
 	# Record choices from the user prompt.
 	userChoice=${promptReponse: -1}
@@ -309,10 +330,11 @@ else # If there are updates, prompt the user to update.
 	
 	if [[ "$userChoice" == "1" ]]; then # If the user said Yes - proceed to plan the updates.
 		if [[ -z "$deferralTime" ]]; then # If the user did not opt to defer the updates, run the updates immediately.
-			echo "User said yes, installing applications: ${rumArray[@]}."
+			# Since the user chose to install the updates, we can clear the Deferral Count.
+			rm "$deferralLog"
+			echo "*** User said yes, installing applications: ${rumArray[@]}. ***"
 			# Loop through all applications for update.
 			for appUpdate in "${rumArray[@]}"; do
-				echo "running command \"installUpdates($appUpdate)\""
 				installUpdates $appUpdate
 			done
 			# Show an alert that updates are done.
@@ -327,15 +349,20 @@ else # If there are updates, prompt the user to update.
 			fi
 		elif [[ $deferralTime == "86400" ]]; then
 			friendlyTime=$(printf '%dh:%02dm\n' $((deferralTime/3600)) $((deferralTime%3600/60)))
-			echo "User chose to defer for $friendlyTime This is long enough to let Jamf handle the deferral. Exiting"
+			echo "*** User chose to defer for $friendlyTime. This is long enough to let Jamf handle the deferral. ***"
+			echo "*** Incrementing Deferral Count and Exiting. ***"
+			deferralCount=$((deferralCount+1))
+			echo $deferralCount > $deferralLog
 			exitCode=0
 		else # If the user chose to defer the updates, create a Launch Daemon that will run a Jamf policy at the chosen time.
 			friendlyTime=$(printf '%dh:%02dm\n' $((deferralTime/3600)) $((deferralTime%3600/60)))
-			echo "User chose to defer for $friendlyTime Writing a launch agent to to handle the deferral."
+			echo "*** User chose to defer for $friendlyTime. ***"
+			echo "*** Writing a launch agent to to handle the deferral. ***"
 			agentSchedule $deferralTime
 		fi
-	elif [[ "$userChoice" == "2" ]]; then # If the user said No, quit now.
-		echo "User cancelled the update. Exiting."
+	else
+		echo "There was a problem."
+		exitCode=1
 	fi
 fi
 
