@@ -279,7 +279,7 @@ else # If there are updates, prompt the user to update.
 	configDeferralLog
 
 	# Begining user prompt.
-	echo "*** Prompting user to install updates. ***"
+	echo "*** ${#rumArray[@]} update(s) found. Prompting user to install updates. ***"
 	# Build the jhc description for the user prompt.
 	#   Set plurality of the description text.
 	if [[ ${#rumArray[@]} == "1" ]]; then
