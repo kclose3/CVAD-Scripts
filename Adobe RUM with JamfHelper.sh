@@ -93,7 +93,7 @@ installUpdates ()
 				loopCounter=$(($loopCounter+1))
 			else
 				# User never responded, so we will skip this update for now.
-				echo "$appTitle failed to close. Continuing."
+				echo "*** $appTitle failed to close. Continuing. ***"
 				failCount=$(($failCount+1))
 				return 
 			fi
