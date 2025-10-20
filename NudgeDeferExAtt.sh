@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-#################################################################################################
+######################################################################################################
 #
 # Nudge Deferral Check and Count
 # Created by: KClose (with assistance from ChatGPT)
@@ -10,8 +10,9 @@
 #
 # Changelog
 # 2025-10-20    -   Updated to zsh and standardized variable formats.
+#                   Removed function to clear nudge.log. This should be handled separately if needed.
 #
-#################################################################################################
+######################################################################################################
 
 ### VARIABLES ###
 
@@ -51,6 +52,7 @@ compareOS() {
 
 # Check for Nudge installation.
 if [[ ! -d "$nudgeApp" ]]; then
+    # IF Nudge is not installed, report N/A and exit.
     echo "<result>N/A</result>"
     exit 0
 fi
@@ -59,22 +61,20 @@ fi
 if [[ -f "$nudgePlist" ]]; then
     minimumOS=$(defaults read "$nudgePlist" requiredMinimumOSVersion 2>/dev/null || echo "none")
 else
-    minimumOS="none"
+    # If the plist doesn't exist, report N/A and exit.
+    echo "<result>N/A</result>"
+    exit 0
 fi
 
 # Check if Current OS Version is the same or newer than MinimumOSVersion.
 if compareOS "$currentOS" "$minimumOS"; then
-    # OS version is up to date, clear nudge.log.
-    if [[ -f "/var/log/nudge.log" ]]; then
-        > /var/log/nudge.log
-    fi
+    # If the current OS is the same or newer as the minimum required, report zero deferrals and no last deferral (reset the ExAtt).
     echo "<result>Deferrals: 0 | Last Deferral: none</result>"
-    exit 0
 else
+    # If the current OS is older than the minimum required, read deferral data from the plist.
     if [[ -f "$nudgePlist" ]]; then
         # Read plist values.
         user_deferrals=$(defaults read "$nudgePlist" userDeferrals 2>/dev/null || echo 0)
-
         # Get last modified date and format nicely.
         plist_mtime=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S %z" "$nudgePlist" 2>/dev/null)
         if [[ -n "$plist_mtime" ]]; then
@@ -83,9 +83,10 @@ else
         else
             formatted_date="none"
         fi
-
+        # Report deferral count and last deferral date.
         echo "<result>Deferrals: $user_deferrals | Last Deferral: $formatted_date</result>"
     else
+        # Lastly, if the plist data doesn't exist, report zero deferrals and no last deferral.
         echo "<result>Deferrals: 0 | Last Deferral: none</result>"
     fi
 fi
